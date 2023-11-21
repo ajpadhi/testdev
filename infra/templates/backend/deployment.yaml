@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: {{ .Release.Name }}-api
+  name: {{ .Release.Name }}-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-api
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-api
+    spec:
+      containers:
+        - name: api
+          image: {{ .Values.api.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+          {{- if .Values.appdynamics.enabled }}
+          command:
+            - pyagent
+          args:
+            - run
+            - "-c"
+            - appdynamics.cfg
+            - "--"
+            - gunicorn
+            - "-k"
+            - uvicorn.workers.UvicornWorker
+            - "-c"
+            - gunicorn_conf.py
+            - app.main:app
+          volumeMounts:
+            - name: {{ .Release.Name }}-appd-cm
+              mountPath: /appdynamics.cfg
+              subPath: appdynamics.cfg
+              readOnly: true
+          {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ .Release.Name }}-api-secret
+          resources:
+            limits:
+              cpu: "2"
+              memory: 2Gi
+            requests:
+              cpu: "1"
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /v1/utils/api-status
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      {{- if .Values.appdynamics.enabled }}
+      volumes:
+        - name: {{ .Release.Name }}-appd-cm
+          configMap:
+            name: {{ .Release.Name }}-appd-cm
+            items:
+              - key: appdynamics.cfg
+                path: appdynamics.cfg
+      {{- end }}

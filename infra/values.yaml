@@ -1,0 +1,23 @@
+fqdn: acts.cisco.com
+openshift: true
+
+api:
+  image: containers.cisco.com/cxinnovations/acts-activity-api:1.3.0
+  staticToken: null
+  actsGenUser: null
+  actsGenPassword: null
+
+appdynamics:
+  enabled: true
+
+  # agent
+  app: CX-IAD-Feasibility
+  node: cae
+
+  # controller
+  host: cisco1.saas.appdynamics.com
+  account: cisco1
+  accesskey: null
+
+mongodb:
+  uri: null

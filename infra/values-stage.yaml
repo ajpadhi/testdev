@@ -1,0 +1,15 @@
+fqdn: acts-stage.cisco.com
+openshift: true
+
+api:
+  # set this with the `--set api.image=` flag
+  image: null
+  staticToken: null
+  actsGenUser: null
+  actsGenPassword: null
+
+appdynamics:
+  enabled: false
+
+mongodb:
+  uri: null

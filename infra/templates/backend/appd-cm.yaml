@@ -1,0 +1,19 @@
+{{ if .Values.appdynamics.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-appd-cm
+data:
+  appdynamics.cfg: |
+    [agent]
+    app = {{ .Values.appdynamics.app }}
+    tier = {{ .Release.Name }}
+    node = {{ .Values.appdynamics.node }}
+
+    [controller]
+    host = {{ .Values.appdynamics.host }}
+    port = 443
+    ssl = true
+    account = {{ .Values.appdynamics.account }}
+    accesskey = {{ .Values.appdynamics.accesskey }}
+{{ end }}
