@@ -1,0 +1,66 @@
+name: Application Workflow
+
+on:
+  push:
+    branches: [ $default-branch ]
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+    - name: qa
+      run: |
+        cd backend
+        pip install poetry
+        poetry config virtualenvs.create false
+        poetry install --without=prod --no-root --no-interaction --no-cache
+        
+        poetry run autoflake --check app
+        poetry run black --check app
+        poetry run isort --check app
+        poetry run flake8 app
+        poetry run mypy app
+  
+  sonarqube:
+    runs-on: ubuntu-latest
+    needs: qa
+    steps:
+      - name: sonar
+        run: SONAR_USER_HOME=$PWD/.cache sonar-scanner -Dsonar.projectVersion=$(git describe HEAD --tags)
+
+  build:
+    runs-on: ubuntu-latest
+    needs: sonarqube
+    steps:
+      - name: docker login
+        run : |
+          docker info
+          docker login -u="$DOCKER_USER" -p="$DOCKER_PASSWORD" containers.cisco.com
+      - name: docker build push
+        run : |
+          cd backend
+          docker build -t $CONTAINER_IMAGE_STAGE .
+          docker push $CONTAINER_IMAGE_STAGE
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: test
+        run: |
+          oc login --server=https://api.prd-alln-01.cae.cisco.com:6443 --token=$OPENSHIFT_TOKEN
+
+          helm ls
+          - >
+            helm upgrade -i -f ./infra/values-stage.yaml hws-stage ./infra  
+            --set api.image=$CONTAINER_IMAGE_STAGE 
+            --set sso.client_id=${{ secrets.SSO_CLIENT_ID }}
+            --set sso.client_secret=${{ secrets.SSO_CLIENT_SECRET }} 
+            --set mongodb.uri=$MONGO_STAGE_URI 
+            --set ldap.user=$LDAP_USER 
+            --set ldap.password=$LDAP_PASSWORD
+            --set quicker.static_token=$QUICKER_STATIC_TOKEN
+            --set rdmt.client_id=$RDMT_CLIENT_ID
+            --set rdmt.access_token=$RDMT_ACCESS_TOKEN
+            --set api.encrypt_key=$HWS_ENC_KEY
+            --set redis.password=$REDIS_PASSWORD
